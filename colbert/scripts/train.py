@@ -4,6 +4,8 @@ from colbert import Trainer
 from colbert.utils.utils import print_message
 
 from colbert.scripts.collection_utils import load_irds_or_local
+from colbert.data.examples import Examples
+
 
 def main(args):
     bsize = args.per_device_batch_size*args.n_gpus
@@ -20,6 +22,9 @@ def main(args):
         collection = load_irds_or_local(args.training_irds_id, 'docs', use_offsetmap=args.use_offsetmap)
 
     triples = load_irds_or_local(args.training_triples, 'docpairs')
+    # NOTE we force the attribute nway to save an assertion in the LazyBatcher:
+    if isinstance(triples, Examples):
+        triples.nway = args.nway
 
     # parse other_args
     other_args = {}
