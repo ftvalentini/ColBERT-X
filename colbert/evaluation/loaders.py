@@ -20,10 +20,11 @@ def load_queries(queries_path):
     with open(queries_path) as f:
         for line in f:
             qid, query, *_ = line.strip().split('\t')
-            try:
-                qid = int(qid)
-            except:
-                qid = qid.strip()
+            # try:
+            #     qid = int(qid)
+            # except:
+            #     qid = qid.strip()
+            # NOTE we don't force to int to avoid bug.
 
             assert (qid not in queries), ("Query QID", qid, "is repeated!")
             queries[qid] = query
