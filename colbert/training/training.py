@@ -4,6 +4,7 @@ import random
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+from tqdm import tqdm
 
 from torch.optim import AdamW
 from transformers import get_linear_schedule_with_warmup
@@ -96,7 +97,10 @@ def train(config: ColBERTConfig, triples, queries=None, collection=None):
         if config.resume:
             reader.skip_to_batch(start_batch_idx)
 
-    for batch_idx, BatchSteps in zip(range(start_batch_idx, config.maxsteps), reader):
+    for batch_idx, BatchSteps in zip(
+        tqdm(range(start_batch_idx, config.maxsteps), unit="steps", disable=(config.rank > 0)),
+        reader
+    ):
         if (warmup_bert is not None) and warmup_bert <= batch_idx:
             set_bert_grad(colbert, True)
             warmup_bert = None
@@ -173,12 +177,13 @@ def train(config: ColBERTConfig, triples, queries=None, collection=None):
 
                 loss = loss / config.accumsteps
 
-            if config.rank < 1:
-                if len(target_scores) and not config.ignore_scores:
-                    highest_avg, lowest_avg = scores.max(dim=-1).values.mean().item(), scores.min(dim=-1).values.mean().item()
-                    print(f"#>>>   {highest_avg:.2f}, {lowest_avg:.2f} \t\t|\t\t {highest_avg-lowest_avg:.2f}")
-                else:
-                    print_progress(scores)
+            # # We disable this logging:
+            # if config.rank < 1:
+            #     if len(target_scores) and not config.ignore_scores:
+            #         highest_avg, lowest_avg = scores.max(dim=-1).values.mean().item(), scores.min(dim=-1).values.mean().item()
+            #         print(f"#>>>   {highest_avg:.2f}, {lowest_avg:.2f} \t\t|\t\t {highest_avg-lowest_avg:.2f}")
+            #     else:
+            #         print_progress(scores)
 
             amp.backward(loss)
 
@@ -190,7 +195,7 @@ def train(config: ColBERTConfig, triples, queries=None, collection=None):
         amp.step(colbert, optimizer, scheduler)
 
         if config.rank < 1:
-            print_message(batch_idx, train_loss)
+            print_message(batch_idx, train_loss, condition=True)
             manage_checkpoints(config, colbert, optimizer, batch_idx+1, savepath=None)
 
     if config.rank < 1:

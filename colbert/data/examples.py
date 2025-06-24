@@ -23,7 +23,8 @@ class Examples:
         return self.__provenance
     
     def toDict(self):
-        return self.provenance()
+        return {'provenance': self.provenance()}
+        # return self.provenance()
 
     def _load_file(self, path: str):
         nway = self.nway + 1 if self.nway else self.nway
