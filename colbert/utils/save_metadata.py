@@ -1,7 +1,6 @@
 from colbert.utils.utils import dotdict
 import os
 import sys
-import git
 import time
 import copy
 import ujson
@@ -13,10 +12,12 @@ def get_metadata_only():
 
     args.hostname = socket.gethostname()
     try:
+        import git
         args.git_branch = git.Repo(search_parent_directories=True).active_branch.name
         args.git_hash = git.Repo(search_parent_directories=True).head.object.hexsha
         args.git_commit_datetime = str(git.Repo(search_parent_directories=True).head.object.committed_datetime)
-    except git.exc.InvalidGitRepositoryError as e:
+    except Exception as e:
+        print(f"Error retrieving git metadata: {e}")
         pass
     args.current_datetime = time.strftime('%b %d, %Y ; %l:%M%p %Z (%z)')
     args.cmd = ' '.join(sys.argv)
@@ -28,9 +29,14 @@ def get_metadata(args):
     args = copy.deepcopy(args)
 
     args.hostname = socket.gethostname()
-    args.git_branch = git.Repo(search_parent_directories=True).active_branch.name
-    args.git_hash = git.Repo(search_parent_directories=True).head.object.hexsha
-    args.git_commit_datetime = str(git.Repo(search_parent_directories=True).head.object.committed_datetime)
+    try:
+        import git
+        args.git_branch = git.Repo(search_parent_directories=True).active_branch.name
+        args.git_hash = git.Repo(search_parent_directories=True).head.object.hexsha
+        args.git_commit_datetime = str(git.Repo(search_parent_directories=True).head.object.committed_datetime)
+    except Exception as e:
+        print(f"Error retrieving git metadata: {e}")
+        pass
     args.current_datetime = time.strftime('%b %d, %Y ; %l:%M%p %Z (%z)')
     args.cmd = ' '.join(sys.argv)
 
