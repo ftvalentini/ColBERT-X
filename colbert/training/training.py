@@ -1,6 +1,10 @@
 import time
 import torch
 import random
+import signal
+import sys
+import os
+import torch.distributed as dist
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
@@ -117,6 +121,29 @@ def train(config: ColBERTConfig, triples, queries=None, collection=None):
                     encoding = [encoding.to(DEVICE)]
 
                 scores: torch.Tensor = colbert(*encoding)
+                try:
+                    scores: torch.Tensor = colbert(*encoding)
+                except RuntimeError as e:
+                    # Only catch CUDA OOMs:
+                    if 'out of memory' in str(e):
+                        rank = dist.get_rank() if dist.is_initialized() else 0
+                        print(f"[rank {rank}] CUDA OOM detected, aborting job.", file=sys.stderr)
+                        # (optional) dump a bit more info:
+                        torch.cuda.empty_cache()
+                        # Tear down c10d so other ranks don’t hang on NCCL timeouts:
+                        if dist.is_initialized():
+                            try:
+                                dist.destroy_process_group()
+                            except Exception:
+                                pass
+                        pgid = os.getpgid(os.getpid())
+                        os.killpg(pgid, signal.SIGTERM)
+
+                        # in case that fails, fall back to a hard exit
+                        os._exit(1)
+                    else:
+                        # re‐raise anything else
+                        raise
 
                 if config.use_ib_negatives:
                     scores, ib_loss = scores
